@@ -56,7 +56,10 @@ func TestExtractProviderMessages(t *testing.T) {
 			name:        "multiple receive operations",
 			spec:        createProviderSpecWithMultipleReceiveOperations(),
 			channelName: "user/events",
-			expectedIn:  createExpectedProviderInMessage(), // Should take first receive operation
+			// Operations are iterated in deterministic alphabetical order:
+			// receiveOtherEvent (no reply) → inMessage = OtherEventRequest
+			// receiveUserEvent (with reply) → outMessage = UserEventResponse
+			expectedIn:  createExpectedOtherEventRequestInMessage(),
 			expectedOut: createExpectedProviderOutMessage(),
 		},
 	}
@@ -344,6 +347,20 @@ func createExpectedProviderOutMessage() *MessageInfo {
 				"result":    map[string]interface{}{"type": "string"},
 			},
 			"required": []string{"status", "timestamp"},
+		},
+	}
+}
+
+func createExpectedOtherEventRequestInMessage() *MessageInfo {
+	return &MessageInfo{
+		Name:        "OtherEventRequest",
+		ContentType: "application/json",
+		Payload: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"data": map[string]interface{}{"type": "string"},
+			},
+			"required": []string{"data"},
 		},
 	}
 }

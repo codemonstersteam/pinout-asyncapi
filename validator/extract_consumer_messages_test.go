@@ -56,7 +56,10 @@ func TestExtractConsumerMessages(t *testing.T) {
 			name:        "multiple operations on one channel",
 			spec:        createSpecWithMultipleOperations(),
 			channelName: "user/events",
-			expectedOut: createExpectedOutMessage(), // Should take first send operation
+			// Operations are iterated in deterministic alphabetical order:
+			// sendOtherEvent (no reply) → outMessage = OtherEvent
+			// sendUserEvent (with reply) → inMessage = UserEventReply
+			expectedOut: createExpectedOtherEventOutMessage(),
 			expectedIn:  createExpectedInMessage(),
 		},
 		{
@@ -351,6 +354,20 @@ func createExpectedInMessage() *MessageInfo {
 				"timestamp": map[string]interface{}{"type": "string"},
 			},
 			"required": []string{"status"},
+		},
+	}
+}
+
+func createExpectedOtherEventOutMessage() *MessageInfo {
+	return &MessageInfo{
+		Name:        "OtherEvent",
+		ContentType: "application/json",
+		Payload: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"data": map[string]interface{}{"type": "string"},
+			},
+			"required": []string{"data"},
 		},
 	}
 }
