@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/codemonstersteam/pinout-asyncapi/parser"
@@ -74,8 +75,16 @@ func (v *ChannelValidator) findMatchingProviderChannel(contractValidate *Contrac
 	var candidateChannels []string
 	channelsWithProtocol := 0
 
-	// Перебираем все каналы поставщика
-	for channelName, channel := range spec.Channels {
+	// Перебираем все каналы поставщика в детерминированном порядке
+	// (Go map iteration is randomized, see findMatchingProviderChannel returns "first match")
+	channelNames := make([]string, 0, len(spec.Channels))
+	for name := range spec.Channels {
+		channelNames = append(channelNames, name)
+	}
+	sort.Strings(channelNames)
+
+	for _, channelName := range channelNames {
+		channel := spec.Channels[channelName]
 		// Проверяем протокол
 		protocol, err := v.extractChannelProtocol(spec, &channel)
 		if err != nil {
@@ -811,12 +820,19 @@ func (v *ChannelValidator) areCorrelationIdsCompatible(corrId1, corrId2 *Correla
 // Поддерживает оба паттерна: Request-Reply/Fire-and-Forget (send) и Publish-Subscribe (receive)
 func (v *ChannelValidator) extractConsumerMessagesFromOperations(spec *parser.AsyncAPISpec, channelRef string) (*MessageInfo, *MessageInfo) {
 	var outMessage, inMessage *MessageInfo
-	
-	for _, operation := range spec.Operations {
+
+	opNames := make([]string, 0, len(spec.Operations))
+	for name := range spec.Operations {
+		opNames = append(opNames, name)
+	}
+	sort.Strings(opNames)
+
+	for _, opName := range opNames {
+		operation := spec.Operations[opName]
 		if operation.Channel.Ref != channelRef {
 			continue
 		}
-		
+
 		switch operation.Action {
 		case "send":
 			// Consumer отправляет сообщения (request)
@@ -885,12 +901,19 @@ func (v *ChannelValidator) extractReplyMessageFromOperation(spec *parser.AsyncAP
 // Поддерживает оба паттерна: Request-Reply/Fire-and-Forget (receive) и Publish-Subscribe (send)
 func (v *ChannelValidator) extractProviderMessagesFromOperations(spec *parser.AsyncAPISpec, channelRef string) (*MessageInfo, *MessageInfo) {
 	var inMessage, outMessage *MessageInfo
-	
-	for _, operation := range spec.Operations {
+
+	opNames := make([]string, 0, len(spec.Operations))
+	for name := range spec.Operations {
+		opNames = append(opNames, name)
+	}
+	sort.Strings(opNames)
+
+	for _, opName := range opNames {
+		operation := spec.Operations[opName]
 		if operation.Channel.Ref != channelRef {
 			continue
 		}
-		
+
 		switch operation.Action {
 		case "receive":
 			// Provider получает сообщения (requests)
