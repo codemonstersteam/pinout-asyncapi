@@ -1,0 +1,145 @@
+# Индекс сценариев сухой трассировки. Каждый сценарий — ОДНА мутация базовой пары
+# (../provider/asyncapi.v1.yaml + ../consumer/consumed-contract.yaml + ../consumer/contract-tests.yaml).
+# Пошаговые трассы — в ../EMULATION.md. Формула набора:
+#   17 = 1 happy + 9 verdict-кодов (R1-R9) + 2 паттерна + 5 веток отказа адаптера.
+#
+# mutates: какой из трёх базовых артефактов правится (provider | contract | config | env)
+# expect:  {exit, code} — ожидаемый исход; code: null означает «ошибок нет»
+
+scenarios:
+  - id: S0
+    name: базовая пара совместима, поставщик легально шире потребителя
+    mutates: none
+    delta: —
+    expect: { exit: 0, code: null }
+    proves: >
+      Контравариантность разрешает необязательное provider-поле locale, которого потребитель не шлёт;
+      ковариантность разрешает provider-поля data.updatedAt и postedBy, которых потребитель не читает.
+      Именно здесь v1 ложно давала incompatible из-за требования идентичности множеств required.
+
+  # --- R1-R4: уровень канала ---
+  - id: S1
+    name: канала нет у поставщика
+    mutates: provider
+    delta: channels.balanceRequest.address -> WALLET.BALANCE.REQ
+    expect: { exit: 1, code: CHANNEL_NOT_IN_PROVIDER }
+
+  - id: S2
+    name: протокол канала разошёлся
+    mutates: provider
+    delta: servers.broker.protocol -> amqp
+    expect: { exit: 1, code: PROTOCOL_MISMATCH }
+    note: >
+      Мутация одного сервера бьёт по ВСЕМ четырём каналам сразу — сценарий заодно доказывает свёртку
+      нарушений (4 записи в errors[]), а не короткое замыкание на первом.
+
+  - id: S3
+    name: у поставщика нет встречной операции для направления
+    mutates: provider
+    delta: удалить operations.receiveBalanceRequest
+    expect: { exit: 1, code: DIRECTION_NOT_IN_PROVIDER }
+    note: >
+      Канал WALLET.BALANCE.REQUEST остаётся в спеке — отсюда отдельный код, а не CHANNEL_NOT_IN_PROVIDER.
+      Проверяет и разворачивание reply: удалённая операция несла reply на WALLET.BALANCE.RESPONSE,
+      но там есть собственная sendBalanceResponse, поэтому второе направление НЕ ломается.
+
+  - id: S3b
+    name: направление есть, но названного сообщения у поставщика нет
+    mutates: provider
+    delta: переименовать ключ channels.auditLog.messages.auditEvent -> auditEventV2
+    expect: { exit: 1, code: MESSAGE_NOT_IN_PROVIDER }
+    note: >
+      Ключ пары — ключ map channel.messages, а НЕ поле Message.Name (парсер перезаписывает его
+      Go-идентификатором, concept.md D8). Сценарий охраняет именно это решение: реализация, опершаяся
+      на Message.Name, свалится в MESSAGE_NOT_IN_PROVIDER на КАЖДОМ сообщении, включая S0.
+
+  # --- R5-R7: поля и типы ---
+  - id: S4
+    name: поставщик требует поле, которого потребитель не шлёт
+    mutates: provider
+    delta: schemas.BalanceRequestPayload.required += idempotencyKey (+ properties.idempotencyKey string)
+    expect: { exit: 1, code: MISSING_REQUIRED_SENT_FIELD }
+
+  - id: S5
+    name: поставщик удалил поле, которое потребитель читает
+    mutates: provider
+    delta: удалить schemas.BalanceData.properties.currency (и из required)
+    expect: { exit: 1, code: READS_FIELD_NOT_PROVIDED }
+    note: >
+      Ключевой сценарий ковариантности: на открытой схеме наивная instance-валидация это пропустила бы.
+
+  - id: S6
+    name: тип общего поля разошёлся
+    mutates: provider
+    delta: schemas.BalanceData.properties.balance.type -> string (format снят)
+    expect: { exit: 1, code: TYPE_MISMATCH }
+    note: Поле лежит на два уровня вглубь -> проверяет рекурсию сверки типов.
+
+  # --- R8-R9: конверт сообщения ---
+  - id: S7
+    name: contentType сообщения разошёлся
+    mutates: provider
+    delta: messages.GetBalanceRequest.contentType -> application/avro
+    expect: { exit: 1, code: CONTENT_TYPE_MISMATCH }
+
+  - id: S8
+    name: correlationId.location разошёлся
+    mutates: provider
+    delta: messages.GetBalanceResponse.correlationId.location -> $message.payload#/corrId
+    expect: { exit: 1, code: CORRELATION_ID_MISMATCH }
+    note: >
+      Сообщение auditEvent при этом correlationId не объявляет ни у одной из сторон — и НЕ даёт
+      нарушения: R9 срабатывает от объявления потребителя (concept.md D9). v1 требовала совпадения
+      всегда и ложно срабатывала на fire-and-forget.
+
+  # --- паттерны коммуникации (выводятся, а не задаются) ---
+  - id: S9
+    name: fire-and-forget — только отправка
+    mutates: config
+    delta: consumer.channels -> [WALLET.AUDIT]
+    expect: { exit: 0, code: null }
+    proves: >
+      На канале только с sends ковариантное правило не применяется и не даёт ложных срабатываний.
+      Провайдерская receiveAudit не объявляет messages -> проверяет дефолт «все сообщения канала».
+
+  - id: S10
+    name: publish-subscribe — только чтение
+    mutates: config
+    delta: consumer.channels -> [WALLET.LEDGER.EVENTS]
+    expect: { exit: 0, code: null }
+    proves: >
+      На канале только с receives контравариантное правило не применяется: provider-required поля
+      entryId/amount потребитель читает, а postedBy не читает — и это законно.
+      Заодно рекурсия по массиву: tags: array of string.
+
+  # --- ветки отказа адаптера (exit 2/3) ---
+  - id: S11
+    name: конфиг задаёт оба источника спеки поставщика
+    mutates: config
+    delta: provider.spec_url добавлен рядом с provider.spec_path
+    expect: { exit: 2, code: CONFIG_ERROR }
+    note: CONFIG_ERROR не попадает в errors[] — отчёт до этого шага ещё не рождается.
+
+  - id: S12
+    name: consumed-contract не найден
+    mutates: config
+    delta: consumer.consumed_contract_path -> ./nope.yaml
+    expect: { exit: 3, code: FILE_NOT_FOUND }
+
+  - id: S13
+    name: спека поставщика не парсится
+    mutates: provider
+    delta: сломать YAML (незакрытая кавычка) либо asyncapi -> 2.6.0
+    expect: { exit: 3, code: PARSE_ERROR }
+
+  - id: S14
+    name: spec_url отдаёт не-2xx
+    mutates: config
+    delta: provider.spec_path -> spec_url на адрес, отвечающий 404
+    expect: { exit: 3, code: HTTP_ERROR }
+
+  - id: S15
+    name: загрузка spec_url дольше settings.timeout
+    mutates: config
+    delta: provider.spec_url на медленный адрес; settings.timeout -> 1
+    expect: { exit: 3, code: TIMEOUT_ERROR }

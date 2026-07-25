@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codemonsters.team/pinout-asyncapi/config.schema.json",
+  "title": "pinout-asyncapi contract-tests config (input DTO)",
+  "description": "Input DTO for the one-shot CLI `pinout-asyncapi validate <config.yaml>`. Assembled by the cli ingress door into ONE flat Invocation handed to the head. Symmetric with the sync twin pinout-openapi/api-specification/config.schema.json — async-specific: `channels` (channel addresses) instead of `operations` (path+method). Provider spec via `spec_path` XOR `spec_url`. FROZEN: this is the sole input contract of the service.",
+  "x-frozen": "2026-07-25",
+  "x-target-shape": "cli",
+  "x-twin": "pinout-openapi/api-specification/config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["consumer", "provider"],
+  "properties": {
+    "consumer": {
+      "type": "object",
+      "description": "The consumer under test and the channel scope to check (only these channels are compared).",
+      "additionalProperties": false,
+      "required": ["name", "consumed_contract_path", "channels"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Non-empty consumer name. Violation -> CONFIG_ERROR (exit 2)."
+        },
+        "consumed_contract_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the consumer's `consumed-contract` artifact (schema-shaped, typed, + provenance; see consumed-contract.schema.json). Missing/unreadable at runtime -> FILE_NOT_FOUND (exit 3); unparseable or schema-invalid -> PARSE_ERROR (exit 3)."
+        },
+        "channels": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Comparison scope: the channel ADDRESSES the consumer depends on. Identity of a channel is its AsyncAPI `channel.address`; when a spec omits `address`, the channel key is used as the address (concept.md D4). Every listed address MUST be present in the consumed-contract, otherwise CONFIG_ERROR (exit 2). Provider channels outside this set are informational (report.uncovered_channels[]).",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Channel address, e.g. `RECEIPT.QUEUE.PS` or `/api/client/{clientId}/wallet/balance`. Empty string -> CONFIG_ERROR (exit 2)."
+          }
+        }
+      }
+    },
+    "provider": {
+      "type": "object",
+      "description": "The provider master AsyncAPI 3.0 spec, reachable via EXACTLY ONE of `spec_path` (local file) or `spec_url` (HTTP GET). Both-set or neither-set -> CONFIG_ERROR (exit 2).",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Non-empty provider name. Violation -> CONFIG_ERROR (exit 2)."
+        },
+        "spec_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to a local AsyncAPI 3.0 file (.yaml/.yml/.json). Mutually exclusive with `spec_url`. Relative paths resolve against the config file's directory. Missing -> FILE_NOT_FOUND (exit 3); unparseable -> PARSE_ERROR (exit 3)."
+        },
+        "spec_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "http(s) URL to the raw AsyncAPI 3.0 spec (HTTP GET). Mutually exclusive with `spec_path`. Private URLs authenticated via header `Authorization: Bearer $PINOUT_PROVIDER_TOKEN` sourced from env only (never config/git). Unreachable/non-2xx -> HTTP_ERROR (exit 3); fetch > `settings.timeout` -> TIMEOUT_ERROR (exit 3); unparseable body -> PARSE_ERROR (exit 3)."
+        }
+      },
+      "oneOf": [
+        { "required": ["spec_path"], "not": { "required": ["spec_url"] } },
+        { "required": ["spec_url"], "not": { "required": ["spec_path"] } }
+      ]
+    },
+    "settings": {
+      "type": "object",
+      "description": "Optional run settings; all defaulted, all symmetric with the sync twin. Any invalid value -> CONFIG_ERROR (exit 2).",
+      "additionalProperties": false,
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info",
+          "description": "Diagnostics level on stderr. Value outside the enum -> CONFIG_ERROR (exit 2)."
+        },
+        "save_json_report": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, write the schema-valid JSON report (report.schema.json) to `json_report_file` for pinout-netlist aggregation. The report is printed to stdout regardless."
+        },
+        "json_report_file": {
+          "type": "string",
+          "minLength": 1,
+          "default": "compatibility_report.json",
+          "description": "Report file name. Relative paths resolve against the process working directory."
+        },
+        "timeout": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 30,
+          "description": "Max seconds to fetch a provider `spec_url`; exceed -> TIMEOUT_ERROR (exit 3). Value <= 0 -> CONFIG_ERROR (exit 2)."
+        },
+        "ignore_warnings": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reserved (twin symmetry): consider only breaking changes. No behaviour in MVP — every rule R1-R9 is breaking."
+        }
+      }
+    }
+  }
+}
