@@ -1,0 +1,26 @@
+# Базовый конфиг прогона — вход CLI `pinout-asyncapi validate <config.yaml>`.
+# Схема: ../../api-specification/config.schema.json
+#
+# consumer.channels перечисляет АДРЕСА каналов (не ключи), потому что идентичность канала в модели —
+# это его `address` (concept.md D4). Канала WALLET.FX.RATES здесь нет: он есть у поставщика, но
+# потребителю не нужен — уйдёт в report.uncovered_channels[] информационно.
+
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: ./consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+
+provider:
+  name: wallet-balance
+  spec_path: ../provider/asyncapi.v1.yaml
+
+settings:
+  log_level: info
+  save_json_report: true
+  json_report_file: compatibility_report.json
+  timeout: 30
+  ignore_warnings: false

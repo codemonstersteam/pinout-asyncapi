@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codemonsters.team/pinout-asyncapi/report.schema.json",
+  "title": "pinout-asyncapi compatibility report (output DTO)",
+  "description": "Machine-readable JSON report emitted on stdout (and, when settings.save_json_report, to settings.json_report_file) by `pinout-asyncapi validate`. Consumed by pinout-netlist for aggregation. Conforms to the ecosystem report canon 1.1 (source of truth: pinout-openapi/docs/report-format.md); mirrors the sync twin pinout-openapi/api-specification/report.schema.json with exactly two differences — the async `errors[].code` enum (rules R1-R9) and `uncovered_channels[]` in place of `uncovered_operations[]`. The process EXIT CODE (separate from this document) is fixed in x-exit-codes below. FROZEN: this is the sole output contract of the service.",
+  "x-frozen": "2026-07-25",
+  "x-schema-version": "1.1",
+  "x-target-shape": "cli",
+  "x-canon": "pinout-openapi/docs/report-format.md (canon 1.1; owner epic E1). Canon 1.1 is an ADDITIVE superset of the flat form both validators actually froze under 1.0: it adds validator / interaction / consumer / generated_at / errors[].subject, and declares `provenance` the single source of provider identity (no separate provider{} block). Decision record: pinout/debt/report-canon-fork.md (operator, variant A, 2026-07-25).",
+  "x-twin": "pinout-openapi/api-specification/report.schema.json",
+  "x-exit-codes": {
+    "description": "Canonical Result->exit mapping, aligned with the sync twin. The exit code is the CLI's status line — the machine-readable serialization of the outcome; it is NOT a field of this report document. CONFIG_ERROR (exit 2) is a config-side breach detected before a report is written, so it never appears in errors[].code.",
+    "table": [
+      { "exit": 0, "class": "compatible",   "meaning": "contracts compatible (compatible == true, errors == [])", "codes": [] },
+      { "exit": 1, "class": "incompatible", "meaning": "a verdict: the domain honestly said no (contract broken)", "codes": ["CHANNEL_NOT_IN_PROVIDER", "PROTOCOL_MISMATCH", "DIRECTION_NOT_IN_PROVIDER", "MESSAGE_NOT_IN_PROVIDER", "MISSING_REQUIRED_SENT_FIELD", "READS_FIELD_NOT_PROVIDED", "TYPE_MISMATCH", "CONTENT_TYPE_MISMATCH", "CORRELATION_ID_MISMATCH"] },
+      { "exit": 2, "class": "config",       "meaning": "bad invocation / unreadable / schema-invalid config, or provider spec source not exactly-one", "codes": ["CONFIG_ERROR"] },
+      { "exit": 3, "class": "io-parse",     "meaning": "environment/spec: io or parse failure of an input artifact (consumed-contract or provider spec)", "codes": ["PARSE_ERROR", "FILE_NOT_FOUND", "HTTP_ERROR", "TIMEOUT_ERROR"] }
+    ]
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "validator", "interaction", "consumer", "generated_at", "compatible", "provenance", "errors"],
+  "properties": {
+    "schema_version": {
+      "const": "1.1",
+      "description": "Report-canon semver. 1.1 is additive over the 1.0 flat form; pinout-netlist reads sync and async reports with one reader."
+    },
+    "validator": {
+      "const": "pinout-asyncapi",
+      "description": "Which validator produced the report. Build-time constant. Canon enum is `pinout-openapi | pinout-asyncapi`; this contract pins the async member."
+    },
+    "interaction": {
+      "const": "async",
+      "description": "Interaction style of the checked pair, so pinout-netlist can label the edge without guessing. Build-time constant. Canon enum is `sync | async`; this contract pins `async`."
+    },
+    "consumer": {
+      "type": "object",
+      "description": "Consumer identity. Without it pinout-netlist cannot build a consumer->provider edge — it would know the provider (from provenance) but not who depends on it.",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Consumer service name, taken from config.consumer.name (config.schema.json)."
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Consumer version. OPTIONAL and emitted only when actually known — there is no source for it in the MVP input contracts, so it is normally absent. Never emit a placeholder."
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp of report generation; pinout-netlist uses it as the freshness `at` of the verdict record. INJECTED FROM ABOVE through a clock port — never read from the system clock inside the core, otherwise component tests become non-deterministic (see docs/concept.md D10)."
+    },
+    "compatible": {
+      "type": "boolean",
+      "description": "Aggregate verdict. Invariant: compatible <=> errors == []. true => exit 0; false => exit 1."
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Which provider spec the consumer's contract was captured from — echoed from the consumed-contract stamp. Canon 1.1 declares this the SINGLE source of provider identity: there is deliberately no separate provider{} block, because provenance is strictly stronger (it carries the capture hash, so netlist can track freshness and re-check on provider change).",
+      "additionalProperties": false,
+      "required": ["provider", "provider_version", "captured_hash"],
+      "properties": {
+        "provider": { "type": "string", "description": "Provider name as stamped at capture time." },
+        "provider_version": { "type": "string", "description": "Version stamp of the source spec (AsyncAPI info.version or the commit that produced it)." },
+        "captured_hash": { "type": "string", "pattern": "^sha256:", "description": "sha256:... hash of the captured provider spec bytes." }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "All violations folded across channels and directions (verdict codes R1-R9 at exit 1) and any input-side io/parse breach that produced a report (exit 3). No rule short-circuits, so one run can surface several. Empty <=> compatible.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "subject"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "CHANNEL_NOT_IN_PROVIDER",
+              "PROTOCOL_MISMATCH",
+              "DIRECTION_NOT_IN_PROVIDER",
+              "MESSAGE_NOT_IN_PROVIDER",
+              "MISSING_REQUIRED_SENT_FIELD",
+              "READS_FIELD_NOT_PROVIDED",
+              "TYPE_MISMATCH",
+              "CONTENT_TYPE_MISMATCH",
+              "CORRELATION_ID_MISMATCH",
+              "PARSE_ERROR",
+              "FILE_NOT_FOUND",
+              "HTTP_ERROR",
+              "TIMEOUT_ERROR"
+            ],
+            "description": "Stable traceability key (TASK <-> use-case <-> contract <-> test). Verdict codes: CHANNEL_NOT_IN_PROVIDER (R1), PROTOCOL_MISMATCH (R2), DIRECTION_NOT_IN_PROVIDER (R3), MESSAGE_NOT_IN_PROVIDER (R4), MISSING_REQUIRED_SENT_FIELD (R5), READS_FIELD_NOT_PROVIDED (R6), TYPE_MISMATCH (R7), CONTENT_TYPE_MISMATCH (R8), CORRELATION_ID_MISMATCH (R9) -> exit 1. Io/parse codes: PARSE_ERROR, FILE_NOT_FOUND, HTTP_ERROR, TIMEOUT_ERROR -> exit 3. See x-exit-codes.",
+            "x-async-subject-note": "Verdict codes carry a channel-scoped subject; io/parse codes carry an artifact-scoped subject. See `subject`."
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What the violation is ABOUT — the graph-edge granularity pinout-netlist keys on (one subject = one edge). For verdict codes (R1-R9) it is the async subject `<channel address>` plus, when known, ` <direction> <message key>` — e.g. `WALLET.BALANCE.RESPONSE receive getBalanceResponse`. For io/parse codes there is no channel, so the subject is the input artifact that failed — e.g. the provider spec_url/spec_path or the consumed-contract path. IMPLEMENTATION RULE: subject is the PREFIX of `location`, extracted from one computation, never composed a second time by hand (docs/concept.md D11)."
+          },
+          "message": { "type": "string", "description": "Human-readable message." },
+          "location": {
+            "type": "string",
+            "description": "The full `at` of the violation: `subject` plus the dotted field path when applicable, e.g. `WALLET.BALANCE.RESPONSE receive getBalanceResponse payload.data.balance`. The message key is the channel `messages` map key, never the parsed Message.Name (see docs/concept.md D8). Direction is `send` or `receive` as seen FROM THE CONSUMER."
+          },
+          "details": { "type": "string", "description": "Detail (expected vs actual type, field name, protocol pair)." },
+          "context": { "type": "object", "description": "Extra structured diagnostics (e.g. {\"consumer_protocol\":\"kafka\",\"provider_protocol\":\"amqp\"})." }
+        }
+      }
+    },
+    "uncovered_channels": {
+      "type": "array",
+      "description": "Informational only: provider channel addresses outside consumer.channels. No effect on the verdict or the exit code. Async counterpart of the twin's uncovered_operations[]; deliberately NOT renamed — the async subject is a channel.",
+      "items": { "type": "string" }
+    }
+  }
+}
