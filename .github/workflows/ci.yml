@@ -1,0 +1,81 @@
+name: CI
+
+# Джоба называется «build & test» — это ИМЯ обязательного статус-чека в защите main.
+# Переименование джобы = сломанная защита ветки (PR перестанет вливаться), меняй только вместе с
+# gh api …/branches/main/protection/required_status_checks/contexts.
+#
+# Репозиторий сейчас без кода (clean slate под greenfield-прогон харнеса), поэтому проверяем то,
+# что есть: контракты экосистемы и фикстуры песочницы обязаны парситься. Go-шаги включаются
+# АВТОМАТИЧЕСКИ, как только прогон положит go.mod — доп. правок в CI не потребуется.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    name: build & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: contracts parse (JSON Schema)
+        run: |
+          python3 - <<'PY'
+          import glob, json, pathlib, sys
+          files = sorted(glob.glob("api-specification/*.json"))
+          if not files:
+              sys.exit("api-specification/*.json не найдены — контракт репозитория пуст")
+          bad = []
+          for f in files:
+              try:
+                  json.loads(pathlib.Path(f).read_text(encoding="utf8"))
+                  print(f"ok  {f}")
+              except Exception as e:
+                  bad.append(f"{f}: {e}")
+          if bad:
+              sys.exit("невалидный JSON:\n" + "\n".join(bad))
+          PY
+
+      - name: fixtures parse (YAML)
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, pathlib, sys, yaml
+          files = sorted(glob.glob("sandbox/**/*.yaml", recursive=True))
+          bad = []
+          for f in files:
+              try:
+                  yaml.safe_load(pathlib.Path(f).read_text(encoding="utf8"))
+                  print(f"ok  {f}")
+              except Exception as e:
+                  bad.append(f"{f}: {e}")
+          if bad:
+              sys.exit("невалидный YAML:\n" + "\n".join(bad))
+          PY
+
+      # Go появляется в репо только после первого прогона — до этого шаги ниже пропускаются.
+      - name: detect go module
+        id: gomod
+        run: |
+          if [ -f go.mod ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/setup-go@v6
+        if: steps.gomod.outputs.present == 'true'
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: go vet
+        if: steps.gomod.outputs.present == 'true'
+        run: go vet ./...
+
+      - name: go build
+        if: steps.gomod.outputs.present == 'true'
+        run: go build ./...
+
+      - name: go test
+        if: steps.gomod.outputs.present == 'true'
+        run: go test -race -count=1 ./...
