@@ -1,0 +1,18 @@
+# bad-timeout — triggers TIMEOUT_ERROR (scenario 8, Extension 4d): provider.spec_url points
+# at the real-protocol stub's /stall route, which sleeps well past settings.timeout before
+# answering; settings.timeout=1 makes the fetch exceed the budget deterministically and fast.
+# Proves the LATE construction of SpecLoader (contracts.md BuildSpecLoader): timeout comes
+# from the already-validated Config, never a constant. EMULATION.md S15.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+provider:
+  name: wallet-balance
+  spec_url: http://provider-stub:8080/stall
+settings:
+  timeout: 1

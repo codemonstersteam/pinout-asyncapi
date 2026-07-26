@@ -1,0 +1,16 @@
+# bad-http-error — triggers HTTP_ERROR (scenario 7, Extension 4c): provider.spec_url
+# points at the real-protocol stub's /error route, which answers 404. Reached by compose
+# service name "provider-stub" (real HTTP, not an in-code mock). EMULATION.md S14.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+provider:
+  name: wallet-balance
+  spec_url: http://provider-stub:8080/error
+settings:
+  timeout: 5

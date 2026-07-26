@@ -1,0 +1,17 @@
+# bad-file-not-found-spec — triggers FILE_NOT_FOUND (scenario 5, Extension 4a):
+# provider.spec_path points at a file that does not exist on disk. consumed-contract stays
+# the good, reachable one — the pipe must short-circuit at step 4 (FileSpecLoader.Load),
+# after step 3 (consumed-contract) already succeeded.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/bad-file-not-found-spec/does-not-exist.yaml
+settings:
+  timeout: 5

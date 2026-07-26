@@ -1,0 +1,15 @@
+# bad-parse-error-contract — triggers PARSE_ERROR (scenario 4, Extension 3b): the
+# consumed-contract is schema-shaped YAML but its `consumer` field does not match
+# config.consumer.name — one of NewConsumedContract's antecedent clauses
+# (contracts.md §3). Provider stays the good, reachable spec: the pipe must short-circuit
+# at step 3 (ContractStore.Load/NewConsumedContract), before step 4 (provider spec) ever runs.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/bad-parse-error-contract/consumed-contract-invalid.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/good/provider-asyncapi.yaml
+settings:
+  timeout: 5

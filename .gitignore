@@ -1,5 +1,29 @@
-.claude
-.harness
-.idea
+# Собранные бинарники
+/tool
+/dist/
+bin/
+
+# Отчёты в stdout иногда редиректят в файл — не коммитим
+*_report.json
+*.report.json
+
+# Go
+*.test
+*.out
+coverage.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Харнес rationaldev: состояние прогона + установка (симлинки с абсолютными путями)
+.agent/
+.claude/
 /harness
 /CLAUDE.md

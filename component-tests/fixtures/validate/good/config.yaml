@@ -1,0 +1,19 @@
+# good — the S0 dry-trace pair (sandbox/EMULATION.md §1): consumer compatible with a
+# strictly richer provider. Happy-path fixture for scenario 1. Provider legally offers
+# more than the consumer uses (optional `locale`, unread `data.updatedAt`/`postedBy`,
+# uncovered `WALLET.FX.RATES` channel) — proves variance rules, not set-identity.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/good/provider-asyncapi.yaml
+settings:
+  save_json_report: true
+  json_report_file: /tmp/compatibility_report.json
+  timeout: 5

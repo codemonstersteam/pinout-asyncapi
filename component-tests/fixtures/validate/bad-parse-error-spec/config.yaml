@@ -1,0 +1,15 @@
+# bad-parse-error-spec — triggers PARSE_ERROR (scenario 6, Extension 4b): provider.spec_path
+# is reachable but its content does not parse as AsyncAPI 3.0. EMULATION.md S13.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/bad-parse-error-spec/provider-invalid.yaml
+settings:
+  timeout: 5
