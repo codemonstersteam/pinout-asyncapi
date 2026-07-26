@@ -1,0 +1,8 @@
+run: validate-slice-01
+weight: route=greenfield · level=modular
+closed_at: 2026-07-26T11:40:50.892Z
+pr: https://github.com/codemonstersteam/pinout-asyncapi/pull/4
+tag: none
+bump: no-bump
+reason: weight='route=greenfield · level=modular' не бампается (chore/unclear версию не двигают; нет сигнала — ни трейлера Weight:, ни веса в заголовке PR)
+task: Источники (все процитированы, ничего не изобретено): [`../../TASK.md`](../../TASK.md),
