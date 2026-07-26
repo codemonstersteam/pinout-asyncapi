@@ -1,0 +1,21 @@
+# Schema-valid consumed-contract EXCEPT `consumer` does not equal config.consumer.name
+# (mq-rest-sync-adapter) -> NewConsumedContract antecedent breach -> PARSE_ERROR (exit 3).
+schema_version: "1.0"
+consumer: not-mq-rest-sync-adapter
+
+provenance:
+  provider: wallet-balance
+  provider_version: 1.4.0
+  captured_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+channels:
+  - address: WALLET.BALANCE.REQUEST
+    protocol: kafka
+    sends:
+      - name: getBalanceRequest
+        content_type: application/json
+        payload:
+          type: object
+          properties:
+            clientId:
+              type: string

@@ -1,0 +1,13 @@
+# bad-file-not-found-contract — triggers FILE_NOT_FOUND (scenario 3, Extension 3a):
+# consumed_contract_path points at an artifact that does not exist on disk.
+# EMULATION.md S12.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/bad-file-not-found-contract/does-not-exist.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/good/provider-asyncapi.yaml
+settings:
+  timeout: 5

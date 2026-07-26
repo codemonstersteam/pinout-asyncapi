@@ -1,0 +1,13 @@
+# bad-config — one element added to the good base that triggers CONFIG_ERROR (scenario 2):
+# provider gives BOTH spec_path and spec_url, violating config.schema.json's oneOf
+# (provider source must be EXACTLY ONE of spec_path/spec_url) → CONFIG_ERROR, exit 2.
+# EMULATION.md S11.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/good/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/good/provider-asyncapi.yaml
+  spec_url: https://provider-stub.invalid/asyncapi.yaml
