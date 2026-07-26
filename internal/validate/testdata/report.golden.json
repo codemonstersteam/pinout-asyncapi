@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.1",
+  "validator": "pinout-asyncapi",
+  "interaction": "async",
+  "consumer": {
+    "name": "mq-rest-sync-adapter"
+  },
+  "generated_at": "2026-07-25T12:00:00Z",
+  "compatible": true,
+  "provenance": {
+    "provider": "wallet-balance",
+    "provider_version": "1.4.0",
+    "captured_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "errors": [],
+  "uncovered_channels": [
+    "WALLET.FX.RATES"
+  ]
+}

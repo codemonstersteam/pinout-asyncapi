@@ -117,20 +117,20 @@ func TestNewConsumedContract(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			contract, err := NewConsumedContract(tt.raw, expectedTestConsumer)
+			contract, err := BuildContractParser(expectedTestConsumer).Parse(tt.raw)
 
 			if tt.wantErr {
 				if err == nil {
-					t.Fatalf("NewConsumedContract(%+v, %q) = nil error, want ErrParseError", tt.raw, expectedTestConsumer)
+					t.Fatalf("BuildContractParser(%q).Parse(%+v) = nil error, want ErrParseError", expectedTestConsumer, tt.raw)
 				}
 				if !errors.Is(err, ErrParseError) {
-					t.Fatalf("NewConsumedContract(%+v, %q) error = %v, want errors.Is(err, ErrParseError)", tt.raw, expectedTestConsumer, err)
+					t.Fatalf("BuildContractParser(%q).Parse(%+v) error = %v, want errors.Is(err, ErrParseError)", expectedTestConsumer, tt.raw, err)
 				}
 				return
 			}
 
 			if err != nil {
-				t.Fatalf("NewConsumedContract(%+v, %q) unexpected error = %v", tt.raw, expectedTestConsumer, err)
+				t.Fatalf("BuildContractParser(%q).Parse(%+v) unexpected error = %v", expectedTestConsumer, tt.raw, err)
 			}
 
 			if contract.consumer != tt.raw.Consumer {

@@ -46,7 +46,7 @@ func TestNewComparison(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
 		cfg, contract, pchans := baseComparisonInputs()
 
-		got, err := NewComparison(cfg, contract, pchans)
+		got, err := NewComparison(ComparisonInput{Config: cfg, Contract: contract, ProviderChannels: pchans})
 		if err != nil {
 			t.Fatalf("NewComparison() unexpected error = %v", err)
 		}
@@ -65,7 +65,7 @@ func TestNewComparison(t *testing.T) {
 		cfg, contract, pchans := baseComparisonInputs()
 		cfg.consumer.Channels = []string{"RECEIPT.QUEUE.PS", "ORDER.QUEUE.PS"}
 
-		_, err := NewComparison(cfg, contract, pchans)
+		_, err := NewComparison(ComparisonInput{Config: cfg, Contract: contract, ProviderChannels: pchans})
 		if err == nil {
 			t.Fatalf("NewComparison() = nil error, want ErrConfigInvalid")
 		}

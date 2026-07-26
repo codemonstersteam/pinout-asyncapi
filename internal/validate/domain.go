@@ -180,6 +180,19 @@ type ProviderMessage struct {
 	Headers               *ProviderSchema
 }
 
+// ComparisonInput materializes the three-stream join NewComparison performs (logic.go,
+// contracts.md §1, module-tree.md §3 "One data argument", tree node 14) — a plain transport
+// DTO: exported fields, no validity claim of its own (validity is established by NewComparison,
+// the one node it feeds). Assembled once in head.go and consumed by exactly one node — it is
+// never threaded further down the pipe (CompareContracts keeps receiving the validated
+// Comparison, not this input) and carries exactly these three fields, no ports, no clock, no
+// config bag (BRD R4 anti-pattern gate: this is not a shared Context/State).
+type ComparisonInput struct {
+	Config           Config
+	Contract         ConsumedContract
+	ProviderChannels ProviderChannels
+}
+
 // Comparison unites an already-valid Config, ConsumedContract and ProviderChannels into one
 // valid-by-construction whole. Unexported fields — built only via NewComparison (logic.go,
 // ticket 13), the design's sanctioned uniting-constructor exception (module-tree.md §3).
