@@ -1,0 +1,8 @@
+run: pipe-arity-coverage-gaps
+weight: patch
+closed_at: 2026-07-27T09:16:09.301Z
+pr: https://github.com/codemonstersteam/pinout-asyncapi/pull/6
+tag: v0.0.1
+bump: tagged
+reason: v0.0.0 + patch
+task: > **Stage 0 (gilb) output.** Source BR: [`debt/task-001.md`](../../debt/task-001.md) (technical-debt
