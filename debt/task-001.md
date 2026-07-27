@@ -57,8 +57,13 @@ report, err = writer.Write(report)                                              
 - `api-specification/` заморожен — не трогать; формат отчёта не менять.
 - D10 обязан сохраниться: системные часы читаются ровно один раз, `Now()` вызывается единожды — теперь
   внутри `Reporter`. Детерминизм «те же входные байты → те же байты отчёта» проверяется.
-- `docs/design/slice-01-validate/{module-tree,contracts}.md` обновить под новые сигнатуры: дизайн —
-  источник правды, он не имеет права разойтись с кодом.
+- ~~`docs/design/slice-01-validate/{module-tree,contracts}.md` обновить под новые сигнатуры~~ —
+  **пункт был сформулирован неверно и заменён правилом харнеса.** На момент постановки канон среза
+  считался неприкосновенной greenfield-записью, и требование «обновить» ей противоречило. Правило с тех
+  пор изменено (`docs/05_REPO_STRUCTURE.md`, «Канон живой, дельта — провенанс»): канон описывает текущее
+  состояние, сводит в него дельту `@wirth-moduledesigner` в `mode=canon-sync` **после приёмки**, канон
+  несёт маркер `> Current as of change <NNN-slug>`, change-папка остаётся провенансом. Механику
+  охраняет `harness/validate-design-sync.mjs` — отдельного пункта в этом тикете не требуется.
 
 ## Definition of Done
 
@@ -66,8 +71,12 @@ report, err = writer.Write(report)                                              
 - [ ] В `head.go` ни одного шага с двумя аргументами данных; коллабораторы (`reporter`, `parser`, `loader`,
       `writer`) собраны до цепочки.
 - [ ] `ComparisonInput` объявлен в `contracts.md` как join; раздел «documented exceptions» по арности пуст.
-- [ ] `internal/validate/adapter_test.go`: `Parse` (happy + Σ ветвей антецедента) и `ResolveExitCode` —
-      все четыре строки грида (`0` compatible · `1` incompatible · `2` config · `3` io/parse).
+- [x] ~~`internal/validate/adapter_test.go`: `Parse` и `ResolveExitCode` — четыре строки грида~~ —
+      **ОТМЕНЁН правилом, а не пропущен.** `program-design` step-08: *«the head module, the I/O modules and
+      the ingress adapter are not unit-covered»* — `adapter.go` это ingress-адаптер (разбор argv, раскладка
+      `Result` в формат ответа), алгоритма в нём нет. Требование в постановке противоречило правилу.
+      Взамен грид доказывается там, где положено: `0`/`1`/`2`/`3` — компонентными сценариями через реальный
+      бинарь, ветка вне таксономии (`default:` → `3`) — кейсом в `cmd/app/main_test.go`.
 - [ ] `validate.feature`: новый сценарий на **несовместимую** пару — `exit 1`, отчёт с непустым `errors[]`.
 - [ ] `component-tests/scripts/run-tests.sh` зелёный целиком.
 - [ ] Отчёт на базовой совместимой паре байт-в-байт совпадает с текущим (рефакторинг ничего не сдвинул).
