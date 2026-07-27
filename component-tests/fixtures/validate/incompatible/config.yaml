@@ -1,0 +1,24 @@
+# incompatible — scenario 9 (contracts.md §6 row 9): minimal mutation of ../good/. Exactly one
+# extra channel address (WALLET.FEES.EVENTS) is added to consumer.channels AND to the
+# consumed-contract's channels (see consumed-contract.yaml here), but deliberately NOT to the
+# provider spec (provider-asyncapi.yaml here is byte-identical to ../good/provider-asyncapi.yaml).
+# This trips R1 (ResolveChannelDirection: channel absent from provider) -> CHANNEL_NOT_IN_PROVIDER
+# -> exit 1. Fixture trap (contracts.md §6): the address MUST be present in the consumed-contract
+# too, else NewComparison's cross-artifact check fires first -> CONFIG_ERROR -> exit 2 (wrong
+# branch). ../good/'s three files are byte-untouched — I2's baseline depends on them.
+consumer:
+  name: mq-rest-sync-adapter
+  consumed_contract_path: /fixtures/validate/incompatible/consumed-contract.yaml
+  channels:
+    - WALLET.BALANCE.REQUEST
+    - WALLET.BALANCE.RESPONSE
+    - WALLET.AUDIT
+    - WALLET.LEDGER.EVENTS
+    - WALLET.FEES.EVENTS
+provider:
+  name: wallet-balance
+  spec_path: /fixtures/validate/incompatible/provider-asyncapi.yaml
+settings:
+  save_json_report: true
+  json_report_file: /tmp/compatibility_report.json
+  timeout: 5

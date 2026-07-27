@@ -114,7 +114,7 @@ pinout-asyncapi validate <config.yaml>
 
 The nine rules — **channel level:** R1 channel exists (by `address`) · R2 protocol matches · R3 provider has the counterpart direction · R4 named message exists on that direction. **Message level** (per direction, over `payload` and `headers`): R5 `required(provider) ⊆ fields(consumer.sends)` (contravariant) · R6 `fields(consumer.receives) ⊆ properties(provider)` (covariant — catches provider field removal) · R7 shared-field `type`/`format` match, recursively · R8 effective `contentType` matches, only when the consumer declared one · R9 `correlationId.location` matches, only when the consumer declared one. Provider channels outside `consumer.channels` are listed as `uncovered_channels[]` — informational only, no verdict or exit effect. Full rationale for each rule and the two variance-direction decisions: [`docs/concept.md`](docs/concept.md) §2, §4, §5 (D3–D4, D7–D9).
 
-## Failure-mode map (exit codes & error model)
+## Карта режимов отказа (failure-mode map — exit codes & error model)
 
 Source: [`api-specification/report.schema.json`](api-specification/report.schema.json) `x-exit-codes` + [`docs/design/slice-01-validate/use-case.md`](docs/design/slice-01-validate/use-case.md) Extensions (16 Extensions ↔ 16 failure-mode rows ↔ 14 distinct states — `CONFIG_ERROR` plus the 13 `error.code` values that can appear in `errors[]`). Exit **1 is a verdict** (the domain honestly said "no"), not a tool error; exits **2/3** are tool errors on the input side.
 
@@ -152,7 +152,7 @@ PINOUT_PROVIDER_TOKEN=… ./pinout-asyncapi validate ./config.yaml
 Read in this order — each level adds context:
 
 1. **This README** — what it is, how to run it.
-2. `component-tests/` — how it behaves from outside (black-box scenarios: 1 happy path + one per adapter failure branch; scenario set designed in [`contracts.md`](docs/design/slice-01-validate/contracts.md) §"Scenario table", realized and passing in [`component-tests/features/validate.feature`](component-tests/features/validate.feature) — 8 scenarios).
+2. `component-tests/` — how it behaves from outside (black-box scenarios: 2 verdict paths (compatible + incompatible) + one per adapter failure branch; scenario set designed in [`contracts.md`](docs/design/slice-01-validate/contracts.md) §"Scenario table", realized and passing in [`component-tests/features/validate.feature`](component-tests/features/validate.feature) — 9 scenarios).
 3. `docs/design/slice-01-validate/` — how the one slice is designed:
    - [`use-case.md`](docs/design/slice-01-validate/use-case.md) — the fully-dressed Cockburn use case (MSS + 16 Extensions).
    - [`module-tree.md`](docs/design/slice-01-validate/module-tree.md) — 19-module tree + head-pipe pseudocode.

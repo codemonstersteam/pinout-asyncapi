@@ -36,7 +36,7 @@ func TestFoldReport_Compatible(t *testing.T) {
 	clock := fixedClock{now: time.Date(2026, 7, 25, 12, 0, 0, 0, time.UTC)}
 	outcome := baseFoldReportOutcome()
 
-	got := FoldReport(outcome, clock)
+	got := BuildReporter(clock).Fold(outcome)
 
 	want := Report{
 		SchemaVersion:     "1.1",
@@ -70,7 +70,7 @@ func TestFoldReport_Incompatible(t *testing.T) {
 		},
 	}
 
-	got := FoldReport(outcome, clock)
+	got := BuildReporter(clock).Fold(outcome)
 
 	if got.Compatible {
 		t.Errorf("FoldReport() Compatible = true, want false when errors != []")

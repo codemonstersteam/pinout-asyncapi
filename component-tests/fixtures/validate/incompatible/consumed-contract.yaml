@@ -1,0 +1,113 @@
+# consumed-contract потребителя mq-rest-sync-adapter — вариант scenario 9 (incompatible).
+# Схема: ../../../api-specification/consumed-contract.schema.json
+#
+# Минимальная мутация ../good/consumed-contract.yaml (contracts.md §6, row 9): ровно ОДИН
+# дополнительный канал WALLET.FEES.EVENTS, которого нет в спеке поставщика
+# (provider-asyncapi.yaml здесь — байт-в-байт копия ../good/provider-asyncapi.yaml). Это
+# срабатывает R1 (ResolveChannelDirection: канал отсутствует у поставщика) ->
+# CHANNEL_NOT_IN_PROVIDER -> exit 1.
+#
+# Ловушка фикстуры (contracts.md §6): адрес ОБЯЗАН присутствовать здесь (в consumed-contract),
+# иначе перекрёстная проверка NewComparison сработает раньше -> CONFIG_ERROR -> exit 2 (не та
+# ветка, которую должен доказывать сценарий 9).
+
+schema_version: "1.0"
+consumer: mq-rest-sync-adapter
+
+provenance:
+  provider: wallet-balance
+  provider_version: 1.4.0
+  captured_hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
+channels:
+  # --- request-reply: запрос уходит здесь ---
+  - address: WALLET.BALANCE.REQUEST
+    protocol: kafka
+    sends:
+      - name: getBalanceRequest
+        content_type: application/json
+        correlation_id_location: $message.header#/correlationId
+        headers:
+          type: object
+          properties:
+            correlationId:
+              type: string
+        payload:
+          type: object
+          properties:
+            clientId:
+              type: string
+            requestId:
+              type: string
+
+  # --- request-reply: ответ приходит здесь ---
+  - address: WALLET.BALANCE.RESPONSE
+    protocol: kafka
+    receives:
+      - name: getBalanceResponse
+        content_type: application/json
+        correlation_id_location: $message.header#/correlationId
+        headers:
+          type: object
+          properties:
+            correlationId:
+              type: string
+        payload:
+          type: object
+          properties:
+            status:
+              type: string
+            data:
+              type: object
+              properties:
+                balance:
+                  type: number
+                  format: double
+                currency:
+                  type: string
+
+  # --- fire-and-forget: только шлём ---
+  - address: WALLET.AUDIT
+    protocol: kafka
+    sends:
+      - name: auditEvent
+        content_type: application/json
+        payload:
+          type: object
+          properties:
+            eventId:
+              type: string
+            actor:
+              type: string
+
+  # --- publish-subscribe: только читаем ---
+  - address: WALLET.LEDGER.EVENTS
+    protocol: kafka
+    receives:
+      - name: ledgerPosted
+        content_type: application/json
+        payload:
+          type: object
+          properties:
+            entryId:
+              type: string
+            amount:
+              type: number
+              format: double
+            tags:
+              type: array
+              items:
+                type: string
+
+  # --- NEW (scenario 9): канал, которого НЕТ у поставщика -> CHANNEL_NOT_IN_PROVIDER ---
+  - address: WALLET.FEES.EVENTS
+    protocol: kafka
+    receives:
+      - name: feesEvent
+        content_type: application/json
+        payload:
+          type: object
+          properties:
+            amount:
+              type: number
+              format: double

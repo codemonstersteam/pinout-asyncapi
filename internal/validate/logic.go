@@ -103,26 +103,46 @@ func NewConfig(raw RawConfig) (Config, error) {
 // `^sha256:[0-9a-f]{64}$`.
 var capturedHashPattern = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 
-// NewConsumedContract is the slice's valid-by-construction ConsumedContract constructor
-// (contracts.md §NewConsumedContract): validates raw against consumed-contract.schema.json's
-// invariants, producing a ConsumedContract whose unexported fields can never hold an invalid
-// value. expectedConsumer (= cfg.Consumer.Name) is a scalar config value, not a second data
-// entity — it never appears in RawContract.
+// ContractParser is the slice's consumed-contract parsing collaborator (contracts.md
+// §ContractParser, module-tree.md §3 node 7): binds the expected consumer name (an
+// already-`NewConfig`-validated config scalar) so its product method, Parse, takes exactly one
+// data entity (RawContract). Not an I/O object — it performs no I/O; a collaborator, not a domain
+// entity (module-tree.md §6).
+type ContractParser struct {
+	expectedConsumer string
+}
+
+// BuildContractParser is ContractParser's factory (contracts.md §BuildContractParser,
+// module-tree.md §3 node 7): binds consumerName (= cfg.Consumer.Name) ahead of the chain so the
+// scalar never travels through the pipe as a second data argument.
+//
+// Antecedent: consumerName non-empty (guaranteed by NewConfig's antecedent).
+// Consequent: a ContractParser carrying that name. No failure branch (construction only) — this
+// totality is precisely why hoisting the bind ahead of the chain is behaviour-preserving.
+func BuildContractParser(consumerName string) ContractParser {
+	return ContractParser{expectedConsumer: consumerName}
+}
+
+// Parse is ContractParser's product method (contracts.md §ContractParser.Parse, module-tree.md §3
+// node 8; was NewConsumedContract(raw, expectedConsumer)): validates raw against
+// consumed-contract.schema.json's invariants, producing a ConsumedContract whose unexported
+// fields can never hold an invalid value. The expected consumer name is captured in the
+// receiver, not a second data argument.
 //
 // Antecedent: raw decodes as a well-formed consumed-contract (ContractStore.Load's concern —
 // here checked as raw.SchemaVersion/Consumer/Provenance/Channels actually carrying decoded
 // values, not the zero-value shape of an empty/garbage document); schema_version == "1.0";
-// consumer == expectedConsumer; provenance.captured_hash matches ^sha256:[0-9a-f]{64}$; channels
+// consumer == p.expectedConsumer; provenance.captured_hash matches ^sha256:[0-9a-f]{64}$; channels
 // non-empty; each channel has non-empty address/protocol and at least one of sends/receives.
 //
 // Consequent: success -> ConsumedContract; failure (any antecedent clause) -> ErrParseError
 // (PARSE_ERROR).
-func NewConsumedContract(raw RawContract, expectedConsumer string) (ConsumedContract, error) {
+func (p ContractParser) Parse(raw RawContract) (ConsumedContract, error) {
 	if raw.SchemaVersion != "1.0" {
 		return ConsumedContract{}, fmt.Errorf("%w: schema_version %q, want \"1.0\"", ErrParseError, raw.SchemaVersion)
 	}
-	if raw.Consumer != expectedConsumer {
-		return ConsumedContract{}, fmt.Errorf("%w: consumer %q, want %q", ErrParseError, raw.Consumer, expectedConsumer)
+	if raw.Consumer != p.expectedConsumer {
+		return ConsumedContract{}, fmt.Errorf("%w: consumer %q, want %q", ErrParseError, raw.Consumer, p.expectedConsumer)
 	}
 	if !capturedHashPattern.MatchString(raw.Provenance.CapturedHash) {
 		return ConsumedContract{}, fmt.Errorf("%w: provenance.captured_hash %q does not match ^sha256:[0-9a-f]{64}$", ErrParseError, raw.Provenance.CapturedHash)
@@ -573,22 +593,22 @@ func mergeProviderMessages(result ProviderChannels, address string, messages map
 //
 // Consequent: success -> Comparison; failure -> ErrConfigInvalid (CONFIG_ERROR) — still before any
 // report is written.
-func NewComparison(cfg Config, contract ConsumedContract, pchans ProviderChannels) (Comparison, error) {
-	contractAddresses := make(map[string]bool, len(contract.channels))
-	for _, ch := range contract.channels {
+func NewComparison(in ComparisonInput) (Comparison, error) {
+	contractAddresses := make(map[string]bool, len(in.Contract.channels))
+	for _, ch := range in.Contract.channels {
 		contractAddresses[ch.Address] = true
 	}
 
-	for _, addr := range cfg.consumer.Channels {
+	for _, addr := range in.Config.consumer.Channels {
 		if !contractAddresses[addr] {
 			return Comparison{}, fmt.Errorf("%w: consumer.channels address %q not present in consumed-contract channels", ErrConfigInvalid, addr)
 		}
 	}
 
 	return Comparison{
-		config:    cfg,
-		contract:  contract,
-		pchannels: pchans,
+		config:    in.Config,
+		contract:  in.Contract,
+		pchannels: in.ProviderChannels,
 	}, nil
 }
 
@@ -1064,14 +1084,31 @@ const (
 	reportInteraction   = "async"
 )
 
-// FoldReport is the slice's terminal step (contracts.md §FoldReport): assembles the canon-1.1
-// Report (report.schema.json) from CompareContracts's Outcome. clock.Now() is called here EXACTLY
-// ONCE — the whole slice's only clock read (D10, concept.md: the core never reads the system clock
-// directly).
+// Reporter is the enclosure for the slice's only clock read (contracts.md §BuildReporter +
+// §Reporter.Fold, ADR-001 node 18): the clock port is bound here, in an unexported field, so
+// Fold takes exactly one data entity. Performs no I/O of its own.
+type Reporter struct {
+	clock Clock
+}
+
+// BuildReporter is Reporter's factory (contracts.md §BuildReporter, ADR-001 node 18): binds the
+// Clock port ahead of the chain so Fold's only input is the Outcome data entity.
+//
+// Antecedent: a non-nil Clock (supplied by the head from Deps).
+// Consequent: a Reporter bound to that clock. No failure branch — construction only.
+func BuildReporter(clock Clock) Reporter {
+	return Reporter{clock: clock}
+}
+
+// Fold is the slice's terminal step (contracts.md §Reporter.Fold, ADR-001 node 19): assembles the
+// canon-1.1 Report (report.schema.json) from CompareContracts's Outcome. clock.Now() is called
+// here EXACTLY ONCE — the whole slice's only clock read (D10, concept.md: the core never reads
+// the system clock directly), reachable only through the port bound at BuildReporter.
 //
 // Antecedent: a valid Outcome (CompareContracts's own consequent).
-// Consequent: Report, total — no failure branch.
-func FoldReport(outcome Outcome, clock Clock) Report {
+// Consequent: Report, total — no failure branch. Byte-identical to the pre-change FoldReport for
+// the same Outcome and the same instant.
+func (r Reporter) Fold(outcome Outcome) Report {
 	errs := outcome.Violations
 	if errs == nil {
 		// report.schema.json's `errors` is a required array — never emit JSON `null` for "no
@@ -1089,7 +1126,7 @@ func FoldReport(outcome Outcome, clock Clock) Report {
 		Validator:         reportValidator,
 		Interaction:       reportInteraction,
 		Consumer:          ReportConsumer{Name: outcome.ConsumerName},
-		GeneratedAt:       clock.Now().Format(time.RFC3339),
+		GeneratedAt:       r.clock.Now().Format(time.RFC3339),
 		Compatible:        len(outcome.Violations) == 0,
 		Provenance:        outcome.Provenance,
 		Errors:            errs,
