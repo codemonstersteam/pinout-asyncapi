@@ -64,6 +64,14 @@ usage-error path (C1 MUST NOT); `Deps` (N4); `internal/validate/adapter_test.go`
 (C0 — the frozen "adapters are not unit-tested" rule stands verbatim; §4's total was written here as
 49 — **superseded by ADR-001 → 51**, see `contracts.md` §4 / `module-tree.md`; C0 itself is unchanged).
 
+**BR DoD item «`internal/validate/adapter_test.go`» is CANCELLED BY RULE, not skipped.** `debt/task-001.md`
+asked for unit tests over `Parse`/`ResolveExitCode`; `program-design` step-08 forbids exactly that — *"the
+head module, the I/O modules and the ingress adapter are not unit-covered"* — and `adapter.go` is the ingress
+adapter (argv parsing, `Result` → response shape; no algorithm). The BR was wrong, the rule stands: the
+exit-code grid is proven where it is observable — `0`/`1`/`2`/`3` by component scenarios through the real
+binary, and the out-of-taxonomy `default:` arm by one case in `cmd/app/main_test.go`. The BR has since been
+corrected upstream (`debt/task-001.md`, item struck with this reference).
+
 ## 3. Affected component scenarios — discriminating analysis
 
 **The arity refactor (R1–R5) owns ZERO rows in this table, by design.** It is a pure restructure: for
