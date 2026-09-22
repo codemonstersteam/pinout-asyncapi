@@ -67,16 +67,20 @@ report, err = writer.Write(report)                                              
 
 ## Definition of Done
 
-- [ ] `go build ./...`, `go vet ./...`, `go test ./...` — зелёные.
-- [ ] В `head.go` ни одного шага с двумя аргументами данных; коллабораторы (`reporter`, `parser`, `loader`,
+- [x] `go build ./...`, `go vet ./...`, `go test ./...` — зелёные.
+- [x] В `head.go` ни одного шага с двумя аргументами данных; коллабораторы (`reporter`, `parser`, `loader`,
       `writer`) собраны до цепочки.
-- [ ] `ComparisonInput` объявлен в `contracts.md` как join; раздел «documented exceptions» по арности пуст.
+- [x] `ComparisonInput` объявлен в `contracts.md` как join; раздел «documented exceptions» по арности пуст.
 - [x] ~~`internal/validate/adapter_test.go`: `Parse` и `ResolveExitCode` — четыре строки грида~~ —
       **ОТМЕНЁН правилом, а не пропущен.** `program-design` step-08: *«the head module, the I/O modules and
       the ingress adapter are not unit-covered»* — `adapter.go` это ingress-адаптер (разбор argv, раскладка
       `Result` в формат ответа), алгоритма в нём нет. Требование в постановке противоречило правилу.
       Взамен грид доказывается там, где положено: `0`/`1`/`2`/`3` — компонентными сценариями через реальный
       бинарь, ветка вне таксономии (`default:` → `3`) — кейсом в `cmd/app/main_test.go`.
-- [ ] `validate.feature`: новый сценарий на **несовместимую** пару — `exit 1`, отчёт с непустым `errors[]`.
-- [ ] `component-tests/scripts/run-tests.sh` зелёный целиком.
-- [ ] Отчёт на базовой совместимой паре байт-в-байт совпадает с текущим (рефакторинг ничего не сдвинул).
+- [x] `validate.feature`: новый сценарий на **несовместимую** пару — `exit 1`, отчёт с непустым `errors[]`.
+- [x] `component-tests/scripts/run-tests.sh` зелёный целиком.
+- [x] Отчёт на базовой совместимой паре байт-в-байт совпадает с текущим (рефакторинг ничего не сдвинул).
+
+> Галочки проставлены постфактум 2026-09-22 по результатам контрольного прогона (PR #5/#6 реализовали
+> всё перечисленное): `go build/vet/test` зелёные, `run-tests.sh` — 10 сценариев (10 passed), байтовые
+> якоря (baseline + golden) зелёные в CI.
